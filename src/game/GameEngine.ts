@@ -15,6 +15,7 @@ export class GameEngine {
   private worldContainer = new Container();
   private groundLayer = new Graphics();
   private roadLayer = new Graphics();
+  private targetMarker = new Graphics();
   private propertyLayer = new Container();
   private otherPlayersLayer = new Container();
   private localPlayerLayer = new Container();
@@ -45,6 +46,13 @@ export class GameEngine {
   private isDestroyed = false;
   private lastBroadcastTime = 0;
   private propertyEntryNodes = new Map<string, { prop: WorldProperty; x: number; y: number }>();
+
+  // Mouse / Pointer Navigation (Click/Tap-to-Move & Drag Navigation)
+  private moveTarget: { x: number; y: number } | null = null;
+  private isPointerDown = false;
+  private pointerDownPos = { x: 0, y: 0 };
+  private pointerWorldPos = { x: 0, y: 0 };
+  private isDraggingToNavigate = false;
 
   constructor(worldData: AccraWorldData, callbacks: GameEngineCallbacks = {}) {
     this.worldData = worldData;
@@ -77,7 +85,7 @@ export class GameEngine {
     const app = new Application();
     await app.init({
       resizeTo: container,
-      backgroundColor: 0xFBF9F5, // Warm Ivory (NO PURPLE)
+      backgroundColor: 0xFBF9F5,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
       antialias: true,
@@ -94,6 +102,7 @@ export class GameEngine {
     // Build scene graph
     this.worldContainer.addChild(this.groundLayer);
     this.worldContainer.addChild(this.roadLayer);
+    this.worldContainer.addChild(this.targetMarker);
     this.worldContainer.addChild(this.propertyLayer);
     this.worldContainer.addChild(this.otherPlayersLayer);
     this.worldContainer.addChild(this.localPlayerLayer);
@@ -109,6 +118,13 @@ export class GameEngine {
     window.addEventListener('keyup', this.handleKeyUp);
     window.addEventListener('resize', this.handleResize);
 
+    // Mouse / Touch Pointer interaction on canvas
+    const canvas = app.canvas;
+    canvas.addEventListener('pointerdown', this.handlePointerDown);
+    window.addEventListener('pointermove', this.handlePointerMove);
+    window.addEventListener('pointerup', this.handlePointerUp);
+    window.addEventListener('pointercancel', this.handlePointerUp);
+
     // Main Game Loop Ticker
     app.ticker.add((ticker) => {
       this.gameLoop(ticker.deltaTime / 60);
@@ -122,14 +138,83 @@ export class GameEngine {
 
   private handleKeyDown = (e: KeyboardEvent) => {
     this.keysPressed[e.code] = true;
+    // Clear click-to-move target when user takes direct keyboard control
+    this.moveTarget = null;
+    this.targetMarker.clear();
   };
 
   private handleKeyUp = (e: KeyboardEvent) => {
     this.keysPressed[e.code] = false;
   };
 
+  // Convert screen coordinates to world coordinates
+  public screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
+    return {
+      x: screenX - this.worldContainer.x,
+      y: screenY - this.worldContainer.y,
+    };
+  }
+
+  private handlePointerDown = (e: PointerEvent) => {
+    // Left click or primary touch
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    this.isPointerDown = true;
+    this.isDraggingToNavigate = false;
+    this.pointerDownPos = { x: e.clientX, y: e.clientY };
+
+    const worldCoords = this.screenToWorld(e.clientX, e.clientY);
+    this.pointerWorldPos = worldCoords;
+  };
+
+  private handlePointerMove = (e: PointerEvent) => {
+    if (!this.isPointerDown) return;
+
+    const dragDist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
+    // If mouse is being held and dragged across the screen, enter continuous waypoint navigation
+    if (dragDist > 10) {
+      this.isDraggingToNavigate = true;
+      const worldCoords = this.screenToWorld(e.clientX, e.clientY);
+      this.pointerWorldPos = worldCoords;
+      this.setMoveTarget(worldCoords.x, worldCoords.y);
+    }
+  };
+
+  private handlePointerUp = (e: PointerEvent) => {
+    if (!this.isPointerDown) return;
+    this.isPointerDown = false;
+
+    // Single click / tap to move to clicked location
+    if (!this.isDraggingToNavigate) {
+      const worldCoords = this.screenToWorld(e.clientX, e.clientY);
+      this.setMoveTarget(worldCoords.x, worldCoords.y);
+    }
+  };
+
+  // Set click destination with visual pulse marker
+  public setMoveTarget(x: number, y: number) {
+    const b = this.worldData.bounds;
+    const clampedX = Math.max(b.minX + 30, Math.min(b.maxX - 30, x));
+    const clampedY = Math.max(b.minY + 30, Math.min(b.maxY - 30, y));
+
+    this.moveTarget = { x: clampedX, y: clampedY };
+    this.drawTargetMarker(clampedX, clampedY);
+  }
+
+  private drawTargetMarker(x: number, y: number) {
+    this.targetMarker.clear();
+    // Soft golden target indicator
+    this.targetMarker.circle(x, y, 14);
+    this.targetMarker.stroke({ width: 2.5, color: 0xEAB308, alpha: 0.85 });
+    this.targetMarker.circle(x, y, 4);
+    this.targetMarker.fill({ color: 0x22C55E, alpha: 0.9 });
+  }
+
   public setJoystickVector(x: number, y: number) {
     this.joystickVector = { x, y };
+    if (x !== 0 || y !== 0) {
+      this.moveTarget = null;
+      this.targetMarker.clear();
+    }
   }
 
   public setTravelMode(mode: TravelMode) {
@@ -161,11 +246,11 @@ export class GameEngine {
     // Gulf of Guinea Ocean along the southern edge
     const coastY = 1550;
     gGround.rect(minX - 500, coastY, maxX + 1000, 1000);
-    gGround.fill(0x7DD3FC); // Sky / Gulf blue (pastels)
+    gGround.fill(0x7DD3FC);
 
     // Sandy beach buffer
     gGround.rect(minX - 500, coastY - 60, maxX + 1000, 60);
-    gGround.fill(0xE8DFCF); // Warm beach sand
+    gGround.fill(0xE8DFCF);
 
     // Draw Roads (Vector Edges)
     const gRoads = this.roadLayer;
@@ -227,7 +312,7 @@ export class GameEngine {
 
       // Entrance Indicator
       g.circle(prop.width / 2, prop.height, 6);
-      g.fill(0xEAB308); // Gold entrance mat
+      g.fill(0xEAB308);
       g.stroke({ width: 1.5, color: 0x292524 });
 
       c.addChild(g);
@@ -373,7 +458,7 @@ export class GameEngine {
   private gameLoop(dt: number) {
     if (!this.app) return;
 
-    // 1. Gather directional input (Keyboard + Touch Joystick)
+    // 1. Gather directional input (Keyboard + Touch Joystick + Mouse Click-to-Move)
     let dx = 0;
     let dy = 0;
 
@@ -388,7 +473,23 @@ export class GameEngine {
       dy += this.joystickVector.y;
     }
 
-    // Normalize diagonal velocity
+    // Check Mouse Click/Hold Destination Waypoint
+    if (dx === 0 && dy === 0 && this.moveTarget) {
+      const toTargetX = this.moveTarget.x - this.localPlayer.x;
+      const toTargetY = this.moveTarget.y - this.localPlayer.y;
+      const distToTarget = Math.hypot(toTargetX, toTargetY);
+
+      if (distToTarget > 12) {
+        dx = toTargetX / distToTarget;
+        dy = toTargetY / distToTarget;
+      } else {
+        // Reached mouse target!
+        this.moveTarget = null;
+        this.targetMarker.clear();
+      }
+    }
+
+    // Normalize velocity vector
     const len = Math.hypot(dx, dy);
     if (len > 0) {
       dx = (dx / len) * Math.min(len, 1);
@@ -458,6 +559,12 @@ export class GameEngine {
     window.removeEventListener('resize', this.handleResize);
 
     if (this.app) {
+      const canvas = this.app.canvas;
+      canvas.removeEventListener('pointerdown', this.handlePointerDown);
+      window.removeEventListener('pointermove', this.handlePointerMove);
+      window.removeEventListener('pointerup', this.handlePointerUp);
+      window.removeEventListener('pointercancel', this.handlePointerUp);
+
       this.app.destroy(true, { children: true, texture: true });
       this.app = null;
     }
