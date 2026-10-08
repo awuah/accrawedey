@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Soft Light Warm Palette (NO PURPLE) */
+    --sand-50: #fbf9f5;
+    --sand-100: #f4efe6;
+    --sand-200: #e8dfcf;
+    --sand-300: #d6c7af;
+    --sand-400: #b5a285;
+
+    /* Gulf of Guinea & Lagoon Waters */
+    --gulf-100: #e0f2fe;
+    --gulf-200: #bae6fd;
+    --gulf-400: #38bdf8;
+    --gulf-600: #0284c7;
+
+    /* Palm & Coastal Greens */
+    --palm-50: #f0fdf4;
+    --palm-100: #dcfce7;
+    --palm-300: #86efac;
+    --palm-500: #22c55e;
+    --palm-700: #15803d;
+
+    /* Warm Sunlight & Gold (Cedis) */
+    --gold-100: #fef9c3;
+    --gold-300: #fde047;
+    --gold-500: #eab308;
+    --gold-600: #ca8a04;
+
+    /* Terracotta Roofs & Clay */
+    --terracotta-100: #ffedd5;
+    --terracotta-300: #fdba74;
+    --terracotta-500: #f97316;
+
+    /* High-contrast Stone Text */
+    --stone-800: #292524;
+    --stone-600: #57534e;
+    --stone-400: #a8a29e;
+  }
+
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
