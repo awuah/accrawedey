@@ -4,9 +4,10 @@ import { User, Sparkles } from 'lucide-react';
 
 interface AuthModalProps {
   onJoinAsGuest: (username: string, avatarColor: string) => void;
+  onOpenEditor?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onJoinAsGuest }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ onJoinAsGuest, onOpenEditor }) => {
   const [username, setUsername] = useState('Kofi_' + Math.floor(100 + Math.random() * 900));
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PALETTES[0].hex);
 
@@ -75,6 +76,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onJoinAsGuest }) => {
           >
             <User className="w-4 h-4" />
             Enter Accra (Instant Play)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenEditor?.()}
+            className="w-full py-2.5 px-4 rounded-2xl bg-[#F4EFE6] hover:bg-[#E8DFCF] text-[#0284C7] font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 border border-[#E8DFCF]"
+          >
+            Launch Admin World Editor 🗺️
           </button>
         </form>
       </div>

@@ -28,7 +28,9 @@ export const App: React.FC = () => {
   const [avatarColor, setAvatarColor] = useState('');
   const [userId, setUserId] = useState('');
   const [isAdmin, setIsAdmin] = useState(true); // Default to admin for co-founder editor access
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(() => {
+    return window.location.search.includes('admin') || window.location.hash.includes('admin');
+  });
 
   // 1. Initialize Game Engine when login completes
   const handleJoin = (name: string, color: string) => {
@@ -143,7 +145,18 @@ export const App: React.FC = () => {
       <div ref={containerRef} className="w-full h-full" />
 
       {/* Auth Screen */}
-      {!isLoggedIn && <AuthModal onJoinAsGuest={handleJoin} />}
+      {!isLoggedIn && (
+        <AuthModal
+          onJoinAsGuest={handleJoin}
+          onOpenEditor={() => {
+            setIsEditorOpen(true);
+            setIsLoggedIn(true);
+            setUsername('Admin_CoFounder');
+            setAvatarColor('#EAB308');
+            setUserId('admin_founder');
+          }}
+        />
+      )}
 
       {/* In-Game HUD Overlays */}
       {isLoggedIn && !isEditorOpen && (
